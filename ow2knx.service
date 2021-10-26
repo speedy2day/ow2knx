@@ -1,0 +1,10 @@
+[Unit]
+Description=1-Wire to KNX
+
+[Service]
+ExecStart=/home/pi/smarthome/ow2knx/ow2knx.sh
+Restart=always
+RestartSec=60
+
+[Install]
+WantedBy=multi-user.target
