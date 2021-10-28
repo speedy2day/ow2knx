@@ -13,13 +13,19 @@
 #                   - bc (An arbitrary precision calculator language)
 #
 # Autor: Sebastian Schnittert (schnittert@gmail.com)
-# Datum: 26.10.2021
+# Datum: 28.10.2021
 
 # Intervall (in Sekunden) der zyklischen Abfrage der 1-Wire Daten
 REFRESH_INTERVALL=20
 # Intervall (in Sekunden) nach dem ein Datum auch ohne Änderung erneut auf den Bus gelegt werden soll
 REPEAT_INTERVALL=900 # 15 min.
 
+# Auflösung (in Bit) mit der die Daten gelesen werden sollen [9-12]
+# Hinweis: Eine geringere Auflösung resultiert in schnelleren Lesezeiten, ergibt aber ungenauere Wert.
+#          Die KNX-Buslast wird dadurch jedoch verringert, da sich der Wert seltener ändert.
+DATA_RESOLUTION=10
+# Sollen die Daten auf eine Nachkommastelle gerundet werden?
+ROUND_TO_TENTH="TRUE"
 # Mount-Punkt des 1-wire subsystems
 OWFS_MOUNTPOINT="/mnt/1wire"
 
@@ -103,7 +109,11 @@ main() {
             # Ist eine 1-Wire Adresse definiert?
             if [ -n "${!OW_ADR}" ] && [ -n "${!GRP_ADR}" ]; then
                 # Das Datum vom 1-Wire File System holen. Leerzeichen entfernen.
-                DEC=$(owget "/"${!OW_ADR}"/temperature" | xargs)
+                DEC="$(owget "/"${!OW_ADR}"/temperature"${DATA_RESOLUTION} | xargs)"
+                # Falls aktiviert, auf eine Nachkommastelle runden
+                if [ "${ROUND_TO_TENTH}" == "TRUE" ]; then
+                    DEC="$(printf "%.1f" "${DEC}")"
+                fi
                 # Die Zeit seit der letzten Aktualisierung berechnen
                 ELAPSED=$(($(date +%s)-${!TIMESTAMP}))
                 # Hat eine Änderung des Datums stattgefunden? (KNX-Last verringern)
@@ -114,7 +124,7 @@ main() {
                     # Den aktuellen Timestamp setzen
                     eval "${TIMESTAMP}=$(date +%s)"
                     # In das DPT-Format konvertieren
-                    HEX=$(dec_to_dpt_9 "${DEC}")
+                    HEX="$(dec_to_dpt_9 "${DEC}")"
                     # Die Gruppenadresse beschreiben
                     eval "${KNX_GROUPWRITE} ${!GRP_ADR} ${HEX} &> /dev/null"
                 fi
